@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { updateNote } from './api'
-import type { Note } from './api'
 import styles from './NoteEditor.module.css'
+import type { Note } from './api'
+import { updateNote } from './api'
+import NoteAttachments from './NoteAttachments'
 
 type NoteEditorProps = {
   note: Note
@@ -11,6 +12,7 @@ type NoteEditorProps = {
 }
 
 const NoteEditor = ({ note, onContentChange, onTitleChange, onDirtyChange }: NoteEditorProps) => {
+
   const content = note.content ?? ''
   const title = note.title ?? ''
 
@@ -125,6 +127,8 @@ const NoteEditor = ({ note, onContentChange, onTitleChange, onDirtyChange }: Not
           onChange={(e) => onContentChange(e.target.value)}
           className={`copy-16 ${styles.body}`}
         />
+
+        <NoteAttachments key={note.id} noteId={note.id} />
       </div>
     </article>
   )
