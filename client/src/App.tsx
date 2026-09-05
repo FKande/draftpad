@@ -9,7 +9,7 @@ import {
 } from './api'
 import LoginForm from './LoginForm'
 import SignupForm from './SignupForm'
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import RequireAuth from './RequireAuth'
 import NoteEditorRoute from './NoteEditorRoute'
 import NotesLayout from './NotesLayout'
@@ -17,6 +17,7 @@ import AuthLayout from './components/AuthLayout'
 import { useToast } from './components/ui/ToastProvider'
 import { isApiError } from './api'
 import type { Note, User } from './api'
+import LandingPage from './LandingPage'
 
 export type Theme = 'light' | 'dark'
 
@@ -25,6 +26,7 @@ function App() {
   const { addToast } = useToast()
 
   const navigate = useNavigate()
+  const { pathname } = useLocation()
 
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
@@ -116,6 +118,7 @@ function App() {
   // up the moment you look at it.
   useEffect(() => {
     const handleFocus = () => {
+      if (!user) return
       loadNotes()
     }
 
@@ -124,7 +127,7 @@ function App() {
     // loadNotes is recreated every render, so including it would re-attach the
     // listener constantly. Proper fix is useCallback; filed as a follow-up.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [user])
 
   useEffect(() => {
     if (!user) return
@@ -204,12 +207,15 @@ function App() {
     )
   }
 
-  if (loading) return <p>loading...</p>
-  if (authError) return <p>Something went wrong. Please refresh.</p>
+  // The public page remains available while auth loads or the API is unavailable.
+  if (pathname !== '/') {
+    if (loading) return <p>loading...</p>
+    if (authError) return <p>Something went wrong. Please refresh.</p>
+  }
 
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/notes" />} />
+      <Route path="/" element={<LandingPage theme={theme} onToggleTheme={toggleTheme} />} />
       <Route
         path="/login"
         element={
