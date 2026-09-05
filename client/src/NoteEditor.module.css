@@ -63,3 +63,106 @@
 .body:focus {
   outline: none;
 }
+
+.attachments {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  border-top: var(--border-width-sm) solid var(--border-subtle);
+  padding-top: var(--space-24);
+  min-width: 0;
+}
+
+.attachmentUpload {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-8);
+}
+
+.attachmentInput {
+  max-width: 100%;
+  border-radius: var(--radius-md);
+}
+
+.attachmentInput::file-selector-button {
+  font: inherit;
+  color: var(--fg-default);
+  background: transparent;
+  border: var(--border-width-sm) solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: var(--space-8) var(--space-12);
+  margin-right: var(--space-12);
+  cursor: pointer;
+}
+
+.attachmentInput:hover:not(:disabled)::file-selector-button {
+  background: var(--bg-surface-hover);
+  border-color: var(--border-strong);
+}
+
+.attachmentInput:disabled::file-selector-button {
+  color: var(--fg-on-disabled);
+  background: var(--bg-disabled);
+  border-color: var(--border-disabled);
+  cursor: not-allowed;
+}
+
+.attachmentList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.attachmentRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  padding-block: var(--space-12);
+}
+
+.attachmentRow + .attachmentRow {
+  border-top: var(--border-width-sm) solid var(--border-subtle);
+}
+
+.attachmentDetails {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-4);
+  flex: 1;
+  min-width: 0;
+}
+
+.attachmentName {
+  max-width: 100%;
+  padding: var(--space-4) 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  text-align: left;
+  overflow-wrap: anywhere;
+  text-decoration: underline;
+  text-decoration-color: var(--border-strong);
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.attachmentName:hover:not(:disabled) {
+  text-decoration-color: currentColor;
+}
+
+.attachmentName:disabled {
+  color: var(--fg-on-disabled);
+  cursor: not-allowed;
+}
+
+.attachmentName:focus-visible,
+.attachmentInput:focus-visible {
+  outline: var(--border-width-md) solid var(--border-focus);
+  outline-offset: var(--space-2);
+}
+
+.attachmentError {
+  overflow-wrap: anywhere;
+}

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import styles from './NoteEditor.module.css'
-import type { Note, Attachment } from './api'
-import { updateNote, getAttachments, uploadAttachment, getAttachmentDownloadUrl } from './api'
+import type { Note } from './api'
+import { updateNote } from './api'
+import NoteAttachments from './NoteAttachments'
 
 type NoteEditorProps = {
   note: Note
@@ -11,57 +12,6 @@ type NoteEditorProps = {
 }
 
 const NoteEditor = ({ note, onContentChange, onTitleChange, onDirtyChange }: NoteEditorProps) => {
-
-  const [attachments, setAttachments] =  useState<Attachment[]>([])
-  const [attachmentsLoading, setAttachmentsLoading] = useState(true)
-  const [attachmentsError, setAttachmentsError] = useState(false)
-
-  const [uploading, setUploading] = useState(false)
-  const [uploadError, setUploadError] = useState(false)
-
-  const [downloadError, setDownloadError] = useState(false)
-
-  const loadAttachments = async () => {
-    setAttachmentsLoading(true)
-    setAttachmentsError(false)
-
-    try {
-      const attachments = await getAttachments(note.id)
-      setAttachments(attachments)
-    } catch {
-      setAttachmentsError(true)
-    } finally {
-      setAttachmentsLoading(false)
-    }
-
-  }
-
-  useEffect(() => {
-    loadAttachments()
-  }, [note.id])
-
-  const handleUpload = async (file: File) => {
-    setUploading(true)
-    setUploadError(false)
-
-    try {
-      const newAttachment = await uploadAttachment(note.id, file)
-      setAttachments((current) => [...current, newAttachment])
-    } catch {
-      setUploadError(true)
-    } finally {
-      setUploading(false)
-    }
-  }
-
-  const handleOpenAttachment = async (attachmentId: string) => {
-    try {
-      const download = await getAttachmentDownloadUrl(note.id, attachmentId)
-      window.open(download.url, '_blank')
-    } catch {
-      setDownloadError(true)
-    }
-  }
 
   const content = note.content ?? ''
   const title = note.title ?? ''
@@ -178,33 +128,7 @@ const NoteEditor = ({ note, onContentChange, onTitleChange, onDirtyChange }: Not
           className={`copy-16 ${styles.body}`}
         />
 
-        <input
-          type="file"
-          onChange={(e) => {
-            const file = e.target.files?.[0]
-            if (!file) return
-            handleUpload(file)
-          }}
-        />
-
-        {attachmentsLoading && <p>Loading attachments...</p>}
-
-        {attachmentsError && (
-          <p className={styles.error}>Couldn't load attachments</p>
-        )}
-
-        {uploadError && (
-          <p className={styles.error}>There was an issue with uploading</p>
-        )}
-
-        {uploading && <p>Uploading attachment...</p>}
-
-        {!attachmentsLoading && attachments.map((attachment) => (
-          <div key={attachment.id}>
-            <p>{attachment.fileName}</p>
-          </div>
-        ))}
-
+        <NoteAttachments key={note.id} noteId={note.id} />
       </div>
     </article>
   )
