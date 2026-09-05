@@ -1,8 +1,14 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
 import styles from './NoteEditor.module.css'
 import type { Note } from './api'
 import { updateNote } from './api'
 import NoteAttachments from './NoteAttachments'
+
+type SaveField = 'content' | 'title'
+
+// Keep writes ordered even if a note is reopened before its final save finishes.
+// Entries are removed when that note's last queued request settles.
+const saveQueues = new Map<string, Promise<void>>()
 
 type NoteEditorProps = {
   note: Note
@@ -22,51 +28,86 @@ const NoteEditor = ({ note, onContentChange, onTitleChange, onDirtyChange }: Not
   const [saveError, setSaveError] = useState(false)
   const [titleSaveError, setTitleSaveError] = useState(false)
 
-  const saveContent = async () => {
-    try {
-      setSaveError(false)
-      await updateNote(note.id, { content })
-      setLastSavedContent(content)
-    } catch {
-      setSaveError(true)
+  // NoteEditorRoute keys this component by note ID. Each editor instance owns
+  // its values; an old request must never read the newly selected note's data.
+  const latestValues = useRef({ content, title })
+  const savedValues = useRef({ content, title })
+  const pending = useRef<Partial<Record<SaveField, { value: string; request: Promise<void> }>>>({})
+  const mounted = useRef(false)
+
+  useLayoutEffect(() => {
+    latestValues.current = { content, title }
+  }, [content, title])
+
+  const saveField = useCallback((field: SaveField) => {
+    const value = latestValues.current[field]
+    const previous = pending.current[field]
+    if (previous ? previous.value === value : savedValues.current[field] === value) return
+
+    const setError = field === 'content' ? setSaveError : setTitleSaveError
+    const setSaved = field === 'content' ? setLastSavedContent : setLastSavedTitle
+    if (mounted.current) setError(false)
+
+    // Capture the value now, then wait for older writes to this note. In
+    // particular, reverting to the saved value still needs a write if an older
+    // edit is in flight. Recheck the saved value only after that write settles.
+    const request = (saveQueues.get(note.id) ?? Promise.resolve()).then(async () => {
+      if (savedValues.current[field] === value) return
+      try {
+        await updateNote(note.id, { [field]: value })
+        savedValues.current[field] = value
+        if (mounted.current) {
+          setSaved(value)
+          setError(false)
+        }
+      } catch {
+        if (mounted.current) setError(true)
+      }
+    })
+
+    pending.current[field] = { value, request }
+    saveQueues.set(note.id, request)
+    void request.then(() => {
+      if (pending.current[field]?.request === request) delete pending.current[field]
+      if (saveQueues.get(note.id) === request) saveQueues.delete(note.id)
+    })
+  }, [note.id])
+
+  useEffect(() => {
+    mounted.current = true
+    const flush = () => {
+      saveField('content')
+      saveField('title')
     }
-  }
+
+    window.addEventListener('blur', flush)
+    return () => {
+      mounted.current = false
+      window.removeEventListener('blur', flush)
+      // Timer cleanups cancel the debounce, not these final queued requests.
+      flush()
+    }
+  }, [saveField])
 
   useEffect(() => {
     if (content === lastSavedContent) return
 
     const timerId = setTimeout(() => {
-      saveContent()
+      saveField('content')
     }, 500)
 
     return () => clearTimeout(timerId)
-    // saveContent is recreated every render, so including it here would reset
-    // the debounce timer on every render and the save would never fire.
-    // Proper fix is useCallback; filed as a follow-up.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [content, note.id, lastSavedContent])
-
-  const saveTitle = async () => {
-    try {
-      setTitleSaveError(false)
-      await updateNote(note.id, { title })
-      setLastSavedTitle(title)
-    } catch {
-      setTitleSaveError(true)
-    }
-  }
+  }, [content, lastSavedContent, saveField])
 
   useEffect(() => {
     if (title === lastSavedTitle) return
 
     const timerId = setTimeout(() => {
-      saveTitle()
+      saveField('title')
     }, 500)
 
     return () => clearTimeout(timerId)
-    // Same as above: saveTitle changes identity every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, note.id, lastSavedTitle])
+  }, [title, lastSavedTitle, saveField])
 
   const unsaved = content !== lastSavedContent
   const unsavedTitle = title !== lastSavedTitle
@@ -78,21 +119,6 @@ const NoteEditor = ({ note, onContentChange, onTitleChange, onDirtyChange }: Not
     onDirtyChange(unsaved || unsavedTitle ? note.id : null)
     return () => onDirtyChange(null)
   }, [unsaved, unsavedTitle, onDirtyChange, note.id])
-
-  // Flush pending saves before the window loses focus, so switching away
-  // mid-debounce does not leave work unsent.
-  useEffect(() => {
-    const handleBlur = () => {
-      if (unsaved) saveContent()
-      if (unsavedTitle) saveTitle()
-    }
-
-    window.addEventListener('blur', handleBlur)
-    return () => window.removeEventListener('blur', handleBlur)
-    // saveContent and saveTitle are omitted deliberately: they change identity
-    // every render, so including them would re-attach the listener constantly.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [unsaved, unsavedTitle])
 
   return (
     <article className={styles.editor}>
