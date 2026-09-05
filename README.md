@@ -2,6 +2,8 @@
 
 A solo-built, Notion-style note-taking app with a focused plain-text editor, automatic saving, and file attachments.
 
+[Live app](https://draftpad-delta.vercel.app)
+
 ## What it does
 
 - Create, edit, rename, and delete notes with automatic saving.
