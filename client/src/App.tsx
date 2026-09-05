@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   getMe,
   logout,
@@ -13,6 +13,7 @@ import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-
 import RequireAuth from './RequireAuth'
 import NoteEditorRoute from './NoteEditorRoute'
 import NotesLayout from './NotesLayout'
+import NotesEmptyState from './NotesEmptyState'
 import AuthLayout from './components/AuthLayout'
 import { useToast } from './components/ui/ToastProvider'
 import { isApiError } from './api'
@@ -40,6 +41,7 @@ function App() {
   const [notesError, setNotesError] = useState(false)
 
   const [creating, setCreating] = useState(false)
+  const createInFlight = useRef(false)
 
   // Cast rather than validate: anything but 'dark' in storage already behaved
   // as whatever theme it named, and validating here would change that.
@@ -165,14 +167,19 @@ function App() {
   }
 
   const handleCreateNote = async () => {
+    // Both create buttons share this lock, including before the next render.
+    if (createInFlight.current) return
+    createInFlight.current = true
     setCreating(true)
 
     try {
       const newNote = await createNote()
       setNotes((prev) => [...prev, newNote])
+      navigate(`/notes/${newNote.id}`)
     } catch {
       addToast('Could not create note, try again')
     } finally {
+      createInFlight.current = false
       setCreating(false)
     }
   }
@@ -261,7 +268,7 @@ function App() {
           </RequireAuth>
         }
       >
-        <Route index element={<p>pick a note</p>} />
+        <Route index element={<NotesEmptyState onCreate={handleCreateNote} creating={creating} />} />
         <Route
           path=":id"
           element={
